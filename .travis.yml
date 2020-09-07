@@ -1,0 +1,17 @@
+language: rust
+
+sudo: required
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+#  - bash -c "! rustc -V | grep nightly || cargo bench --features benchmark --verbose"

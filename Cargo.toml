@@ -13,3 +13,6 @@ keywords = ["tensor", "opencl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
+num-traits = "0.2"
+num-integer = "0.1"
+num-complex = "0.3"
