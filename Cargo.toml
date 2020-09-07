@@ -1,0 +1,15 @@
+[package]
+name = "grinder"
+version = "0.0.0"
+authors = ["Alexey Gerasev <alexey.gerasev@gmail.com>"]
+edition = "2018"
+description = "Tensor library with OpenCL acceleration"
+documentation = "https://docs.rs/grinder"
+readme = "README.md"
+homepage = "https://github.com/agerasev/grinder"
+repository = "https://github.com/agerasev/grinder"
+license = "MIT OR Apache-2.0"
+keywords = ["tensor", "opencl"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
