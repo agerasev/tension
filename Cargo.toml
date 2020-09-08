@@ -12,7 +12,13 @@ license = "MIT OR Apache-2.0"
 keywords = ["tensor", "opencl"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = ["device"]
+device = ["ocl", "num-complex-v01"]
+
 [dependencies]
 num-traits = "0.2"
 num-integer = "0.1"
 num-complex = "0.3"
+ocl = { version = "0.19.3", optional = true }
+num-complex-v01 = { package = "num-complex", version = "0.1", optional = true }
