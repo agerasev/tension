@@ -48,24 +48,24 @@ impl<T: Prm> Tensor<T> {
         }
     }
     pub unsafe fn new_uninit(shape: &[usize]) -> Result<Self, Error> {
-        Self::new_uninit_loc(&Location::Host, shape)
+        Self::new_uninit_on(&Location::Host, shape)
     }
-    pub unsafe fn new_uninit_loc(loc: &Location, shape: &[usize]) -> Result<Self, Error> {
+    pub unsafe fn new_uninit_on(loc: &Location, shape: &[usize]) -> Result<Self, Error> {
         Buffer::new_uninit(loc, shape.iter().product())
         .and_then(|buffer| Self::from_buffer(buffer, shape))
     }
     pub fn new_filled(shape: &[usize], value: T) -> Result<Self, Error> {
-        Self::new_filled_loc(&Location::Host, shape, value)
+        Self::new_filled_on(&Location::Host, shape, value)
     }
-    pub fn new_filled_loc(loc: &Location, shape: &[usize], value: T) -> Result<Self, Error> {
+    pub fn new_filled_on(loc: &Location, shape: &[usize], value: T) -> Result<Self, Error> {
         Buffer::new_filled(loc, shape.iter().product(), value)
         .and_then(|buffer| Self::from_buffer(buffer, shape))
     }
     pub fn new_zeroed(shape: &[usize]) -> Result<Self, Error> {
-        Self::new_zeroed_loc(&Location::Host, shape)
+        Self::new_zeroed_on(&Location::Host, shape)
     }
-    pub fn new_zeroed_loc(loc: &Location, shape: &[usize]) -> Result<Self, Error> {
-        Self::new_filled_loc(loc, shape, T::zero())
+    pub fn new_zeroed_on(loc: &Location, shape: &[usize]) -> Result<Self, Error> {
+        Self::new_filled_on(loc, shape, T::zero())
     }
 
     pub fn shape(&self) -> &[usize] {
