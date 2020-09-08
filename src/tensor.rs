@@ -3,7 +3,10 @@ use crate::{
     Buffer, Location,
     Error,
 };
-use std::rc::Rc;
+use std::{
+    iter::once,
+    rc::Rc,
+};
 
 
 #[derive(Clone, Copy, Debug)]
@@ -19,44 +22,44 @@ pub enum Index {
     Range(Range),
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Slicing {
-    pub start: usize,
-    pub length: usize,
-    pub stride: isize
-}
-impl Slicing {
-    fn new(start: usize, length: usize, stride: isize) -> Self {
-        Slicing { start, length, stride }
-    }
-}
-
 #[derive(Clone)]
 pub struct Tensor<T: Prm> {
-    dims: Vec<Slicing>,
+    shape: Vec<usize>,
+    stride: Vec<usize>,
     shared_data: Rc<Buffer<T>>,
 }
 
 impl<T: Prm> Tensor<T> {
+    fn from_buffer(buffer: Buffer<T>, shape: &[usize]) -> Result<Self, Error> {
+        if buffer.len() == shape.iter().product() {
+            Ok(Self {
+                shape: shape.iter().cloned().collect(),
+                stride: once(0).chain(shape.iter().scan(1, |state, &x| {
+                    *state = *state * x;
+                    Some(*state)
+                })).collect(),
+                shared_data: Rc::new(buffer),
+            })
+        } else {
+            Err(Error::ShapeMismatch(format!(
+                "Buffer length {:?} != shape product {:?} = {:?}",
+                buffer.len(), shape, shape.iter().product::<usize>()
+            )))
+        }
+    }
     pub unsafe fn new_uninit(shape: &[usize]) -> Result<Self, Error> {
         Self::new_uninit_loc(&Location::Host, shape)
     }
     pub unsafe fn new_uninit_loc(loc: &Location, shape: &[usize]) -> Result<Self, Error> {
-        let len = shape.iter().product();
-        Buffer::new_uninit(loc, len).map(|buf| Self {
-            dims: shape.iter().map(|s| Slicing::new(0, *s, 1)).collect(),
-            shared_data: Rc::new(buf),
-        })
+        Buffer::new_uninit(loc, shape.iter().product())
+        .and_then(|buffer| Self::from_buffer(buffer, shape))
     }
     pub fn new_filled(shape: &[usize], value: T) -> Result<Self, Error> {
         Self::new_filled_loc(&Location::Host, shape, value)
     }
     pub fn new_filled_loc(loc: &Location, shape: &[usize], value: T) -> Result<Self, Error> {
-        let len = shape.iter().product();
-        Buffer::new_filled(loc, len, value).map(|buf| Self {
-            dims: shape.iter().map(|s| Slicing::new(0, *s, 1)).collect(),
-            shared_data: Rc::new(buf),
-        })
+        Buffer::new_filled(loc, shape.iter().product(), value)
+        .and_then(|buffer| Self::from_buffer(buffer, shape))
     }
     pub fn new_zeroed(shape: &[usize]) -> Result<Self, Error> {
         Self::new_zeroed_loc(&Location::Host, shape)
@@ -65,8 +68,8 @@ impl<T: Prm> Tensor<T> {
         Self::new_filled_loc(loc, shape, T::zero())
     }
 
-    pub fn shape(&self) -> Vec<usize> {
-        return self.dims.iter().map(|s| s.length).collect();
+    pub fn shape(&self) -> &[usize] {
+        return self.shape.as_slice();
     }
     /*
     pub fn reshape(&self, shape: &[usize]) -> Result<Tensor<T>, Error> {
