@@ -1,46 +1,69 @@
+use num_traits as num;
 use num_complex::Complex;
 
 
-#[cfg(not(feature = "device"))]
-mod wrap {
-    use super::*;
+pub trait Zero {
+    fn zero() -> Self;
+}
+pub trait One {
+    fn one() -> Self;
+}
 
-    pub trait Prm: PartialEq + Copy {}
+pub trait Num: num::Num {}
 
-    impl Prm for bool {}
-    
-    impl Prm for u8 {}
-    impl Prm for u16 {}
-    impl Prm for u32 {}
-    impl Prm for u64 {}
-    
-    impl Prm for i8 {}
-    impl Prm for i16 {}
-    impl Prm for i32 {}
-    impl Prm for i64 {}
-    
-    impl Prm for f32 {}
-    impl Prm for f64 {}
-    
-    impl Prm for Complex<f32> {}
-    impl Prm for Complex<f64> {}    
+impl Num for u8 {}
+impl Num for u16 {}
+impl Num for u32 {}
+impl Num for u64 {}
+
+impl Num for i8 {}
+impl Num for i16 {}
+impl Num for i32 {}
+impl Num for i64 {}
+
+impl Num for f32 {}
+impl Num for f64 {}
+
+impl Num for Complex<f32> {}
+impl Num for Complex<f64> {}
+
+
+impl<T: Num> Zero for T {
+    fn zero() -> Self {
+        <T as num::Zero>::zero()
+    }
+}
+impl Zero for bool {
+    fn zero() -> Self {
+        false
+    }
+}
+impl<T: Num> One for T {
+    fn one() -> Self {
+        <T as num::One>::one()
+    }
+}
+impl One for bool {
+    fn one() -> Self {
+        false
+    }
 }
 
 
 #[cfg(feature = "device")]
-mod wrap {
+mod interop {
     use super::*;
     use ocl::{OclPrm};
     use num_complex_v01::{Complex as ComplexV01};
 
 
-    pub trait Prm: PartialEq + Copy {
+    pub trait Interop: Copy {
         type Dev: OclPrm + Copy;
         fn to_dev(self) -> Self::Dev;
         fn from_dev(x: Self::Dev) -> Self;
     }
-    
-    impl Prm for bool {
+
+    impl Interop for bool {
         type Dev = u8;
         fn to_dev(self) -> Self::Dev {
             if self {
@@ -50,15 +73,11 @@ mod wrap {
             }
         }
         fn from_dev(x: Self::Dev) -> Self {
-            if x != 0 {
-                true
-            } else {
-                false
-            }
+            x != 0
         }
     }
 
-    impl Prm for u8 {
+    impl Interop for u8 {
         type Dev = u8;
         fn to_dev(self) -> Self::Dev {
             self
@@ -67,7 +86,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for u16 {
+    impl Interop for u16 {
         type Dev = u16;
         fn to_dev(self) -> Self::Dev {
             self
@@ -76,7 +95,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for u32 {
+    impl Interop for u32 {
         type Dev = u32;
         fn to_dev(self) -> Self::Dev {
             self
@@ -85,7 +104,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for u64 {
+    impl Interop for u64 {
         type Dev = u64;
         fn to_dev(self) -> Self::Dev {
             self
@@ -95,7 +114,7 @@ mod wrap {
         }
     }
 
-    impl Prm for i8 {
+    impl Interop for i8 {
         type Dev = i8;
         fn to_dev(self) -> Self::Dev {
             self
@@ -104,7 +123,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for i16 {
+    impl Interop for i16 {
         type Dev = i16;
         fn to_dev(self) -> Self::Dev {
             self
@@ -113,7 +132,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for i32 {
+    impl Interop for i32 {
         type Dev = i32;
         fn to_dev(self) -> Self::Dev {
             self
@@ -122,7 +141,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for i64 {
+    impl Interop for i64 {
         type Dev = i64;
         fn to_dev(self) -> Self::Dev {
             self
@@ -132,7 +151,7 @@ mod wrap {
         }
     }
 
-    impl Prm for f32 {
+    impl Interop for f32 {
         type Dev = f32;
         fn to_dev(self) -> Self::Dev {
             self
@@ -141,7 +160,7 @@ mod wrap {
             x
         }
     }
-    impl Prm for f64 {
+    impl Interop for f64 {
         type Dev = f64;
         fn to_dev(self) -> Self::Dev {
             self
@@ -151,7 +170,7 @@ mod wrap {
         }
     }
 
-    impl Prm for Complex<f32> {
+    impl Interop for Complex<f32> {
         type Dev = ComplexV01<f32>;
         fn to_dev(self) -> Self::Dev {
             Self::Dev::new(self.re, self.im)
@@ -160,7 +179,7 @@ mod wrap {
             Self::new(x.re, x.im)
         }
     }
-    impl Prm for Complex<f64> {
+    impl Interop for Complex<f64> {
         type Dev = ComplexV01<f64>;
         fn to_dev(self) -> Self::Dev {
             Self::Dev::new(self.re, self.im)
@@ -171,5 +190,10 @@ mod wrap {
     }
 }
 
+#[cfg(feature = "device")]
+pub use interop::*;
 
-pub use wrap::*;
+#[cfg(feature = "device")]
+pub trait Prm : Copy + PartialEq + Zero + One + Interop {}
+#[cfg(not(feature = "device"))]
+pub trait Prm : Copy + PartialEq + Zero + One {}
