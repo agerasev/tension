@@ -59,8 +59,36 @@ mod interop {
 
     pub trait Interop: Copy {
         type Dev: OclPrm + Copy;
+
         fn to_dev(self) -> Self::Dev;
         fn from_dev(x: Self::Dev) -> Self;
+        /*
+        fn load_slice(dst: &mut [Self], src: &[Self::Dev]) {
+            assert_eq!(dst.len(), src.len());
+            for (d, &s) in dst.iter_mut().zip(src.iter()) {
+                *d = Self::from_dev(s);
+            }
+        }
+        fn store_slice(dst: &mut [Self::Dev], src: &[Self]) {
+            assert_eq!(dst.len(), src.len());
+            for (d, &s) in dst.iter_mut().zip(src.iter()) {
+                *d = s.to_dev();
+            }
+        }
+        */
+    }
+
+    pub trait IdentInterop: Interop<Dev=Self> + OclPrm {}
+
+    impl <T: IdentInterop> Interop for T {
+        type Dev = Self;
+
+        fn to_dev(self) -> Self::Dev {
+            self
+        }
+        fn from_dev(x: Self::Dev) -> Self {
+            x
+        }
     }
 
     impl Interop for bool {
@@ -77,98 +105,18 @@ mod interop {
         }
     }
 
-    impl Interop for u8 {
-        type Dev = u8;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for u16 {
-        type Dev = u16;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for u32 {
-        type Dev = u32;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for u64 {
-        type Dev = u64;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
+    impl IdentInterop for u8 {}
+    impl IdentInterop for u16 {}
+    impl IdentInterop for u32 {}
+    impl IdentInterop for u64 {}
 
-    impl Interop for i8 {
-        type Dev = i8;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for i16 {
-        type Dev = i16;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for i32 {
-        type Dev = i32;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for i64 {
-        type Dev = i64;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
+    impl IdentInterop for i8 {}
+    impl IdentInterop for i16 {}
+    impl IdentInterop for i32 {}
+    impl IdentInterop for i64 {}
 
-    impl Interop for f32 {
-        type Dev = f32;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
-    impl Interop for f64 {
-        type Dev = f64;
-        fn to_dev(self) -> Self::Dev {
-            self
-        }
-        fn from_dev(x: Self::Dev) -> Self {
-            x
-        }
-    }
+    impl IdentInterop for f32 {}
+    impl IdentInterop for f64 {}
 
     impl Interop for Complex<f32> {
         type Dev = ComplexV01<f32>;

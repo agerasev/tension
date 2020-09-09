@@ -5,7 +5,7 @@ use ocl::{Buffer as OclBuffer, Queue, MemFlags};
 
 
 pub struct HostBuffer<T: Prm> {
-    pub vec: Vec<T>,
+    vec: Vec<T>,
 }
 impl<T: Prm> HostBuffer<T> {
     pub unsafe fn new_uninit(len: usize) -> Result<Self, Error> {
@@ -21,11 +21,17 @@ impl<T: Prm> HostBuffer<T> {
     pub fn len(&self) -> usize {
         self.vec.len()
     }
+    pub fn as_slice(&self) -> &[T] {
+        self.vec.as_slice()
+    }
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        self.vec.as_mut_slice()
+    }
 }
 
 #[cfg(feature = "device")]
 pub struct DeviceBuffer<T: Prm> {
-    pub mem: OclBuffer<T::Dev>,
+    mem: OclBuffer<T::Dev>,
 }
 #[cfg(feature = "device")]
 impl<T: Prm> DeviceBuffer<T> {
@@ -36,7 +42,7 @@ impl<T: Prm> DeviceBuffer<T> {
         .len(len)
         .build()
         .map(|mem| DeviceBuffer { mem })
-        .map_err(|e| Error::OclError(e))
+        .map_err(|e| Error::Ocl(e))
     }
     pub fn new_filled(queue: &Queue, len: usize, value: T) -> Result<Self, Error> {
         OclBuffer::builder()
@@ -46,11 +52,38 @@ impl<T: Prm> DeviceBuffer<T> {
         .fill_val(value.to_dev())
         .build()
         .map(|mem| DeviceBuffer { mem })
-        .map_err(|e| Error::OclError(e))
+        .map_err(|e| Error::Ocl(e))
     }
     pub fn len(&self) -> usize {
         self.mem.len()
     }
+    /*
+    pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
+        if self.len() == dst.len() {
+            let mut dst_dev = Vec::<T::Dev>::with_capacity(dst.len());
+            dst_dev.set_len(dst.len());
+            self.mem.read(&mut dst_dev).enq()
+            .map_err(|e| Error::Ocl(e))
+            .and_then(|_| {
+                dst_dev.iter().map(|&x| T::from_dev(x))
+                Ok(())
+            })
+        } else {
+            Err(Error::ShapeMismatch(format!(
+                "buffer length {} != dst length {}", self.len(), dst.len()
+            )))
+        }
+    }
+    pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
+        if self.len() == src.len() {
+
+        } else {
+            Err(Error::ShapeMismatch(format!(
+                "buffer length {} != src length {}", self.len(), src.len()
+            )))
+        }
+    }
+    */
 }
 
 pub enum Buffer<T: Prm> {
