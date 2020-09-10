@@ -4,6 +4,7 @@ use crate::{Prm, Error};
 use ocl::{Buffer as OclBuffer, Queue, MemFlags};
 
 
+/// Buffer that stores data on the host. Simply a wrapper around `Vec`.
 pub struct HostBuffer<T: Prm> {
     vec: Vec<T>,
 }
@@ -27,8 +28,15 @@ impl<T: Prm> HostBuffer<T> {
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         self.vec.as_mut_slice()
     }
+    pub fn load(&self, dst: &mut [T]) {
+        dst.copy_from_slice(self.as_slice());
+    }
+    pub fn store(&mut self, src: &[T]) {
+        self.as_mut_slice().copy_from_slice(src);
+    }
 }
 
+/// Buffer that stores data on device. Wrapper over OpenCL buffer.
 #[cfg(feature = "device")]
 pub struct DeviceBuffer<T: Prm> {
     mem: OclBuffer<T::Dev>,
@@ -57,41 +65,22 @@ impl<T: Prm> DeviceBuffer<T> {
     pub fn len(&self) -> usize {
         self.mem.len()
     }
-    /*
     pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
-        if self.len() == dst.len() {
-            let mut dst_dev = Vec::<T::Dev>::with_capacity(dst.len());
-            dst_dev.set_len(dst.len());
-            self.mem.read(&mut dst_dev).enq()
-            .map_err(|e| Error::Ocl(e))
-            .and_then(|_| {
-                dst_dev.iter().map(|&x| T::from_dev(x))
-                Ok(())
-            })
-        } else {
-            Err(Error::ShapeMismatch(format!(
-                "buffer length {} != dst length {}", self.len(), dst.len()
-            )))
-        }
+        T::load_from_buffer(dst, &self.mem).map_err(|e| Error::Ocl(e))
     }
     pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
-        if self.len() == src.len() {
-
-        } else {
-            Err(Error::ShapeMismatch(format!(
-                "buffer length {} != src length {}", self.len(), src.len()
-            )))
-        }
+        T::store_to_buffer(&mut self.mem, src).map_err(|e| Error::Ocl(e))
     }
-    */
 }
 
+/// Generic buffer that can be either host-side and device-side.
 pub enum Buffer<T: Prm> {
     Host(HostBuffer<T>),
     #[cfg(feature = "device")]
     Device(DeviceBuffer<T>),
 }
 
+/// Memory location. Can be either host or some of devices.
 #[derive(Clone, Debug)]
 pub enum Location {
     Host,
@@ -118,6 +107,8 @@ impl PartialEq for Location {
 }
 
 impl<T: Prm> Buffer<T> {
+    /// Create uninitialzed buffer.
+    /// This is unsafe method, but it is helpful for allocation of storage for some subsequent operation.
     pub unsafe fn new_uninit(location: &Location, len: usize) -> Result<Self, Error> {
         match location {
             Location::Host => {
@@ -130,6 +121,7 @@ impl<T: Prm> Buffer<T> {
             }.map(|dbuf| Self::Device(dbuf)),
         }
     }
+    /// Create buffer filled with a single value.
     pub fn new_filled(location: &Location, len: usize, value: T) -> Result<Self, Error> {
         match location {
             Location::Host => {
@@ -143,6 +135,7 @@ impl<T: Prm> Buffer<T> {
         }
     }
 
+    /// Returns location of the buffer.
     pub fn location(&self) -> Location {
         match self {
             Self::Host(_) => Location::Host,
@@ -151,12 +144,43 @@ impl<T: Prm> Buffer<T> {
             Self::Device(buf) => Location::Device(buf.mem.default_queue().unwrap().clone()),
         }
     }
+    /// Returns the length of the buffer.
     pub fn len(&self) -> usize {
         match self {
             Self::Host(hbuf) => hbuf.len(),
 
             #[cfg(feature = "device")]
             Self::Device(dbuf) => dbuf.len(),
+        }
+    }
+    /// Loads data from buffer to slice.
+    pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
+        if self.len() == dst.len() {
+            match self {
+                Self::Host(hbuf) => { hbuf.load(dst); Ok(()) },
+
+                #[cfg(feature = "device")]
+                Self::Device(dbuf) => dbuf.load(dst),
+            }
+        } else {
+            Err(Error::ShapeMismatch(format!(
+                "buffer length {} != dst length {}", self.len(), dst.len()
+            )))
+        }
+    }
+    /// Stores data from slice to buffer.
+    pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
+        if self.len() == src.len() {
+            match self {
+                Self::Host(hbuf) => { hbuf.store(src); Ok(()) },
+
+                #[cfg(feature = "device")]
+                Self::Device(dbuf) => dbuf.store(src),
+            }
+        } else {
+            Err(Error::ShapeMismatch(format!(
+                "buffer length {} != src length {}", self.len(), src.len()
+            )))
         }
     }
 }

@@ -9,24 +9,26 @@ use std::{
 
 /// Struture representing range for one dimension for tensor slicing operation.
 ///
-/// + `start` field - the beginning of range *inclusively*.
-/// + `end` field - the end of range *exclusively*.
-///
-/// Both `begin` and `end` can be negative that means indexing from the end (e.g. `-1` means last element).
-///
-/// + `step` field - the step between elements. May be negative that means stepping in reversed order.
-///   May not be zero, this will cause error on slice operation.
+/// Both `begin` and `end` indices can be negative that means indexing from the end (e.g. `-1` means last element).
 #[derive(Clone, Copy, Debug)]
 pub struct Range {
+    /// The *inclusive* start index of range.
     pub start: isize,
+    /// The *exclusive* end index of range.
     pub end: isize,
+    /// The step between elements. May be negative that means stepping in reversed order.
+    /// May not be zero, this will cause error on slice operation.
     pub step: isize,
 }
 
 /// Index for one dimension for tensor slicing operaion.
 #[derive(Clone, Copy, Debug)]
 pub enum Index {
+    /// Single index that extract a corresponding section of tensor.
+    /// Removes corresponding dimension from shape.
     Single(isize),
+    /// Range of indices with step.
+    /// Extracts corresponding sections and leaves its dimension on its place.
     Range(Range),
 }
 
@@ -93,22 +95,17 @@ impl<T: Prm> Tensor<T> {
     pub fn reshape(&self, shape: &[usize]) -> Result<Tensor<T>, Error> {
         Self::from_shared_buffer(self.shared_data.clone(), shape)
     }
-    /*
+    /// Load flattened data from tensor to slice.
     pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
-        if self.data.len() == dst.len() {
-            dst.copy_from_slice(self.data.as_slice());
-            Ok(())
-        } else {
-            Err(Error::BadSize)
-        }
+        self.shared_data.load(dst)
     }
+    /// Store data from slice to a tensor in a flattened manner.
     pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
-        if self.data.len() == src.len() {
-            self.data.copy_from_slice(src);
-            Ok(())
-        } else {
-            Err(Error::BadSize)
+        match Rc::get_mut(&mut self.shared_data) {
+            Some(buffer) => buffer.store(src),
+            None => Err(Error::NotExclusive(
+                format!("Tensor data have {} owners", Rc::strong_count(&self.shared_data))
+            ))
         }
     }
-    */
 }
