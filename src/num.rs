@@ -13,6 +13,9 @@ pub trait One {
 /// Wrapper for `num_traits::Num`.
 pub trait Num: num::Num {}
 
+/// Wrapper for `num_traits::Float`.
+pub trait Float: Num + num::Float {}
+
 impl Num for u8 {}
 impl Num for u16 {}
 impl Num for u32 {}
@@ -23,11 +26,16 @@ impl Num for i16 {}
 impl Num for i32 {}
 impl Num for i64 {}
 
+impl Num for usize {}
+impl Num for isize {}
+
 impl Num for f32 {}
 impl Num for f64 {}
 
-impl Num for Complex<f32> {}
-impl Num for Complex<f64> {}
+impl Float for f32 {}
+impl Float for f64 {}
+
+impl<T: Float> Num for Complex<T> {}
 
 
 impl<T: Num> Zero for T {
@@ -56,7 +64,7 @@ impl One for bool {
 mod interop {
     use super::*;
     use std::mem::transmute;
-    use ocl::{OclPrm, Buffer, error::Result as OclResult};
+    use ocl::{OclPrm, Buffer};
     use num_complex_v01::{Complex as ComplexV01};
 
 
@@ -70,23 +78,20 @@ mod interop {
         fn from_dev(x: Self::Dev) -> Self;
 
         /// Copy data from OpenCL buffer to host slice.
-        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) -> OclResult<()> {
+        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) {
             assert_eq!(dst.len(), src.len());
-
             let mut tmp = Vec::<Self::Dev>::new();
-            src.read(&mut tmp).enq()?;
-
+            src.read(&mut tmp).enq().unwrap();
             for (d, &s) in dst.iter_mut().zip(tmp.iter()) {
                 *d = Self::from_dev(s);
             }
-            Ok(())
         }
 
         /// Copy data from host slice to OpenCL buffer.
-        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) -> OclResult<()> {
+        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) {
             assert_eq!(dst.len(), src.len());
             let tmp = src.iter().map(|x| x.to_dev()).collect::<Vec<_>>();
-            dst.write(&tmp).enq()
+            dst.write(&tmp).enq().unwrap();
         }
     }
 
@@ -102,13 +107,13 @@ mod interop {
         fn from_dev(x: Self::Dev) -> Self {
             x
         }
-        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) -> OclResult<()> {
+        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) {
             assert_eq!(dst.len(), src.len());
-            src.read(dst).enq()
+            src.read(dst).enq().unwrap();
         }
-        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) -> OclResult<()> {
+        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) {
             assert_eq!(dst.len(), src.len());
-            dst.write(src).enq()
+            dst.write(src).enq().unwrap();
         }
     }
 
@@ -139,46 +144,44 @@ mod interop {
     impl IdentInterop for f32 {}
     impl IdentInterop for f64 {}
 
-    impl Interop for Complex<f32> {
-        type Dev = ComplexV01<f32>;
+    impl Interop for usize {
+        type Dev = u32;
         fn to_dev(self) -> Self::Dev {
-            Self::Dev::new(self.re, self.im)
+            self as Self::Dev
         }
         fn from_dev(x: Self::Dev) -> Self {
-            Self::new(x.re, x.im)
-        }
-        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) -> OclResult<()> {
-            assert_eq!(dst.len(), src.len());
-            src.read(
-                unsafe { transmute::<_, &mut [Self::Dev]>(dst) }
-            ).enq()
-        }
-        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) -> OclResult<()> {
-            assert_eq!(dst.len(), src.len());
-            dst.write(
-                unsafe { transmute::<_, &[Self::Dev]>(src) }
-            ).enq()
+            x as Self
         }
     }
-    impl Interop for Complex<f64> {
-        type Dev = ComplexV01<f64>;
+    impl Interop for isize {
+        type Dev = i32;
+        fn to_dev(self) -> Self::Dev {
+            self as Self::Dev
+        }
+        fn from_dev(x: Self::Dev) -> Self {
+            x as Self
+        }
+    }
+
+    impl<T: Float> Interop for Complex<T> where ComplexV01<T>: OclPrm {
+        type Dev = ComplexV01<T>;
         fn to_dev(self) -> Self::Dev {
             Self::Dev::new(self.re, self.im)
         }
         fn from_dev(x: Self::Dev) -> Self {
             Self::new(x.re, x.im)
         }
-        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) -> OclResult<()> {
+        fn load_from_buffer(dst: &mut [Self], src: &Buffer<Self::Dev>) {
             assert_eq!(dst.len(), src.len());
             src.read(
                 unsafe { transmute::<_, &mut [Self::Dev]>(dst) }
-            ).enq()
+            ).enq().unwrap();
         }
-        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) -> OclResult<()> {
+        fn store_to_buffer(dst: &mut Buffer<Self::Dev>, src: &[Self]) {
             assert_eq!(dst.len(), src.len());
             dst.write(
                 unsafe { transmute::<_, &[Self::Dev]>(src) }
-            ).enq()
+            ).enq().unwrap();
         }
     }
 }
@@ -187,9 +190,15 @@ mod interop {
 pub use interop::*;
 
 /// Type that could be put in tensor.
-#[cfg(feature = "device")]
-pub trait Prm : Copy + PartialEq + Zero + One + Interop {}
-
-/// Type that could be put in tensor.
 #[cfg(not(feature = "device"))]
 pub trait Prm : Copy + PartialEq + Zero + One {}
+#[cfg(not(feature = "device"))]
+impl<T: Num> Prm for T {}
+
+/// Type that could be put in tensor.
+#[cfg(feature = "device")]
+pub trait Prm : Copy + PartialEq + Zero + One + Interop {}
+#[cfg(feature = "device")]
+impl<T: Num + Interop> Prm for T {}
+
+impl Prm for bool {}

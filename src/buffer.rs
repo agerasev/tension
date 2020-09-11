@@ -1,4 +1,4 @@
-use crate::{Prm, Error};
+use crate::{Prm};
 
 #[cfg(feature = "device")]
 use ocl::{Buffer as OclBuffer, Queue, MemFlags};
@@ -42,15 +42,15 @@ pub struct HostBuffer<T: Prm> {
     vec: Vec<T>,
 }
 impl<T: Prm> HostBuffer<T> {
-    pub unsafe fn new_uninit(len: usize) -> Result<Self, Error> {
+    pub unsafe fn new_uninit(len: usize) -> Self {
         let mut vec = Vec::<T>::with_capacity(len);
         vec.set_len(len);
-        Ok(Self { vec })
+        Self { vec }
     }
-    pub fn new_filled(len: usize, value: T) -> Result<Self, Error> {
+    pub fn new_filled(len: usize, value: T) -> Self {
         let mut vec = Vec::<T>::new();
         vec.resize(len, value);
-        Ok(Self { vec })
+        Self { vec }
     }
     pub fn len(&self) -> usize {
         self.vec.len()
@@ -76,16 +76,16 @@ pub struct DeviceBuffer<T: Prm> {
 }
 #[cfg(feature = "device")]
 impl<T: Prm> DeviceBuffer<T> {
-    pub unsafe fn new_uninit(queue: &Queue, len: usize) -> Result<Self, Error> {
+    pub unsafe fn new_uninit(queue: &Queue, len: usize) -> Self {
         OclBuffer::builder()
         .queue(queue.clone())
         .flags(MemFlags::READ_WRITE)
         .len(len)
         .build()
         .map(|mem| DeviceBuffer { mem })
-        .map_err(|e| Error::Ocl(e))
+        .unwrap()
     }
-    pub fn new_filled(queue: &Queue, len: usize, value: T) -> Result<Self, Error> {
+    pub fn new_filled(queue: &Queue, len: usize, value: T) -> Self {
         OclBuffer::builder()
         .queue(queue.clone())
         .flags(MemFlags::READ_WRITE)
@@ -93,7 +93,7 @@ impl<T: Prm> DeviceBuffer<T> {
         .fill_val(value.to_dev())
         .build()
         .map(|mem| DeviceBuffer { mem })
-        .map_err(|e| Error::Ocl(e))
+        .unwrap()
     }
     pub fn len(&self) -> usize {
         self.mem.len()
@@ -101,21 +101,21 @@ impl<T: Prm> DeviceBuffer<T> {
     pub fn queue(&self) -> &Queue {
         self.mem.default_queue().unwrap()
     }
-    pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
-        T::load_from_buffer(dst, &self.mem).map_err(|e| Error::Ocl(e))
+    pub fn load(&self, dst: &mut [T]) {
+        T::load_from_buffer(dst, &self.mem);
     }
-    pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
-        T::store_to_buffer(&mut self.mem, src).map_err(|e| Error::Ocl(e))
+    pub fn store(&mut self, src: &[T]) {
+        T::store_to_buffer(&mut self.mem, src);
     }
-    pub fn copy_from(&mut self, src: &Self) -> Result<(), Error> {
+    pub fn copy_from(&mut self, src: &Self) {
         assert_eq!(self.len(), src.len());
         if Location::eq_queue(self.queue(), src.queue()) {
-            src.mem.copy(&mut self.mem, None, None).enq().map_err(|e| Error::Ocl(e))
+            src.mem.copy(&mut self.mem, None, None).enq().unwrap();
         } else {
             let mut tmp = Vec::<T::Dev>::new();
             src.mem.read(&mut tmp).enq()
             .and_then(|_| self.mem.write(tmp.as_slice()).enq())
-            .map_err(|e| Error::Ocl(e))
+            .unwrap();
         }
     }
 }
@@ -130,27 +130,27 @@ pub enum Buffer<T: Prm> {
 impl<T: Prm> Buffer<T> {
     /// Create uninitialzed buffer.
     /// This is unsafe method, but it is helpful for allocation of storage for some subsequent operation.
-    pub unsafe fn new_uninit(location: &Location, len: usize) -> Result<Self, Error> {
+    pub unsafe fn new_uninit(location: &Location, len: usize) -> Self {
         match location {
-            Location::Host => {
+            Location::Host => Self::Host({
                 HostBuffer::new_uninit(len)
-            }.map(|hbuf| Self::Host(hbuf)),
+            }),
             #[cfg(feature = "device")]
-            Location::Device(queue) => {
+            Location::Device(queue) => Self::Device({
                 DeviceBuffer::new_uninit(queue, len)
-            }.map(|dbuf| Self::Device(dbuf)),
+            }),
         }
     }
     /// Create buffer filled with a single value.
-    pub fn new_filled(location: &Location, len: usize, value: T) -> Result<Self, Error> {
+    pub fn new_filled(location: &Location, len: usize, value: T) -> Self {
         match location {
-            Location::Host => {
+            Location::Host => Self::Host({
                 HostBuffer::new_filled(len, value)
-            }.map(|hbuf| Self::Host(hbuf)),
+            }),
             #[cfg(feature = "device")]
-            Location::Device(queue) => {
+            Location::Device(queue) => Self::Device({
                 DeviceBuffer::new_filled(queue, len, value)
-            }.map(|dbuf| Self::Device(dbuf)),
+            }),
         }
     }
 
@@ -170,68 +170,58 @@ impl<T: Prm> Buffer<T> {
             Self::Device(dbuf) => dbuf.len(),
         }
     }
+
     /// Loads data from buffer to slice.
-    pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
-        if self.len() == dst.len() {
-            match self {
-                Self::Host(hbuf) => { hbuf.load(dst); Ok(()) },
-                #[cfg(feature = "device")]
-                Self::Device(dbuf) => dbuf.load(dst),
-            }
-        } else {
-            Err(Error::LengthMismatch(dst.len(), self.len()))
+    pub fn load(&self, dst: &mut [T]) {
+        match self {
+            Self::Host(hbuf) => hbuf.load(dst),
+            #[cfg(feature = "device")]
+            Self::Device(dbuf) => dbuf.load(dst),
         }
     }
     /// Stores data from slice to buffer.
-    pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
-        if self.len() == src.len() {
-            match self {
-                Self::Host(hbuf) => { hbuf.store(src); Ok(()) },
-                #[cfg(feature = "device")]
-                Self::Device(dbuf) => dbuf.store(src),
-            }
-        } else {
-            Err(Error::LengthMismatch(self.len(), src.len()))
+    pub fn store(&mut self, src: &[T]) {
+        match self {
+            Self::Host(hbuf) => hbuf.store(src),
+            #[cfg(feature = "device")]
+            Self::Device(dbuf) => dbuf.store(src),
         }
     }
     /// Copies content to `self` from another buffer.
-    pub fn copy_from(&mut self, src: &Self) -> Result<(), Error> {
-        if self.len() == src.len() {
-            match (self, src) {
-                (Self::Host(hdst), Self::Host(hsrc)) => {
-                    hdst.as_mut_slice().copy_from_slice(hsrc.as_slice());
-                    Ok(())
-                },
-                #[cfg(feature = "device")]
-                (Self::Device(ddst), Self::Device(dsrc)) => {
-                    ddst.copy_from(dsrc)
-                },
-                #[cfg(feature = "device")]
-                (Self::Host(hdst), Self::Device(dsrc)) => {
-                    dsrc.load(hdst.as_mut_slice())
-                },
-                #[cfg(feature = "device")]
-                (Self::Device(ddst), Self::Host(hsrc)) => {
-                    ddst.store(hsrc.as_slice())
-                },
-            }
-        } else {
-            Err(Error::LengthMismatch(self.len(), src.len()))
+    pub fn copy_from(&mut self, src: &Self) {
+        match (self, src) {
+            (Self::Host(hdst), Self::Host(hsrc)) => {
+                hdst.as_mut_slice().copy_from_slice(hsrc.as_slice());
+            },
+            #[cfg(feature = "device")]
+            (Self::Device(ddst), Self::Device(dsrc)) => {
+                ddst.copy_from(dsrc);
+            },
+            #[cfg(feature = "device")]
+            (Self::Host(hdst), Self::Device(dsrc)) => {
+                dsrc.load(hdst.as_mut_slice());
+            },
+            #[cfg(feature = "device")]
+            (Self::Device(ddst), Self::Host(hsrc)) => {
+                ddst.store(hsrc.as_slice());
+            },
         }
     }
     /// Copies content from `self` to another buffer.
-    pub fn copy_to(&self, dst: &mut Self) -> Result<(), Error> {
-        dst.copy_from(self)
+    pub fn copy_to(&self, dst: &mut Self) {
+        dst.copy_from(self);
     }
 
     /// Creates a new buffer in a specified location and copies the content to it.
-    pub fn clone_to(&self, location: &Location) -> Result<Self, Error> {
-        unsafe { Self::new_uninit(location, self.len()) }
-        .and_then(|mut dst| dst.copy_from(self).map(|_| dst))
+    pub fn clone_to(&self, location: &Location) -> Self {
+        let mut dst = unsafe { Self::new_uninit(location, self.len()) };
+        dst.copy_from(self);
+        dst
     }
-    /// Creates a new buffer in the same location and copies the content to it.
-    /// It is not an implementation of the `Clone` trait because there may be an error.
-    pub fn clone(&self) -> Result<Self, Error> {
+}
+
+impl<T: Prm> Clone for Buffer<T> {
+    fn clone(&self) -> Self {
         self.clone_to(&self.location())
     }
 }
