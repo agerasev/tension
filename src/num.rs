@@ -193,12 +193,12 @@ pub use interop::*;
 #[cfg(not(feature = "device"))]
 pub trait Prm : Copy + PartialEq + Zero + One {}
 #[cfg(not(feature = "device"))]
-impl<T: Num> Prm for T {}
+impl<T: Num + Copy> Prm for T {}
 
 /// Type that could be put in tensor.
 #[cfg(feature = "device")]
 pub trait Prm : Copy + PartialEq + Zero + One + Interop {}
 #[cfg(feature = "device")]
-impl<T: Num + Interop> Prm for T {}
+impl<T: Num + Interop + Copy> Prm for T {}
 
 impl Prm for bool {}

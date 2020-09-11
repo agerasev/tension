@@ -13,6 +13,7 @@ pub enum Location {
 }
 
 impl Location {
+    #[cfg(feature = "device")]
     pub fn eq_queue(aq: &Queue, bq: &Queue) -> bool {
         aq.as_ptr() == bq.as_ptr()
     }

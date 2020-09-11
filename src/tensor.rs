@@ -1,7 +1,6 @@
 use crate::{
     Prm,
     Buffer, Location,
-    Error,
 };
 use std::{
     rc::Rc,
@@ -31,7 +30,12 @@ pub enum Index {
     /// Extracts corresponding sections and leaves its dimension on its place.
     Range(Range),
 }
-
+/*
+pub struct Iter<'a, T: Prm> {
+    tensor: &'a Tensor<T>,
+    indices: Vec<usize>,
+}
+*/
 /// Tensor structure.
 /// It consists of a contiguous one-dimensional array and a shape.
 /// Tensor tries to reuse resources as long as possible and implements copy-on-write mechanism.
@@ -94,5 +98,34 @@ impl<T: Prm> Tensor<T> {
     /// Store data from slice to a tensor in a flattened manner.
     pub fn store(&mut self, src: &[T]) {
         Rc::make_mut(&mut self.buffer).store(src);
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_filled() {
+        let value: i32 = -123;
+        let a = Tensor::new_filled(&[4, 3, 2], value);
+
+        let mut v = Vec::new();
+        v.resize(24, 0);
+        a.load(v.as_mut_slice());
+
+        assert!(v.iter().all(|&x| x == value));
+    }
+
+    #[test]
+    fn new_zeroed() {
+        let a = Tensor::new_zeroed(&[4, 3, 2]);
+
+        let mut v = Vec::new();
+        v.resize(24, -1);
+        a.load(v.as_mut_slice());
+
+        assert!(v.iter().all(|&x| x == 0));
     }
 }
