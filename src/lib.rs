@@ -1,9 +1,25 @@
 mod num;
-//mod error;
-mod buffer;
-//mod tensor;
-
 pub use num::*;
-//pub use error::*;
+
+mod buffer;
 pub use buffer::*;
-//pub use tensor::*;
+
+mod tensor;
+pub use tensor::*;
+
+pub mod host {
+    use super::*;
+    pub use buffer::host::*;
+    pub use tensor::host::*;
+}
+
+#[cfg(feature = "device")]
+pub mod device {
+    use super::*;
+    pub use buffer::device::*;
+    pub use tensor::device::*;
+}
+
+pub mod prelude {
+    pub use super::CommonTensor;
+}

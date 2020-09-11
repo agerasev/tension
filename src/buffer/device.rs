@@ -1,5 +1,5 @@
-use crate::{Prm};
-use super::host::*;
+use crate::{Prm, Interop};
+use super::host::{Buffer as HostBuffer};
 
 use ocl::{Buffer as OclBuffer, Queue, MemFlags};
 
@@ -22,10 +22,10 @@ impl PartialEq for Location {
 }
 
 /// Buffer that stores data on device. Wrapper over OpenCL buffer.
-pub struct DeviceBuffer<T: Prm> {
+pub struct Buffer<T: Prm + Interop> {
     mem: OclBuffer<T::Dev>,
 }
-impl<T: Prm> DeviceBuffer<T> {
+impl<T: Prm + Interop> Buffer<T> {
     /// Create uninitialzed buffer.
     /// This is unsafe method, but it is helpful for allocation of storage for some subsequent operation.
     pub unsafe fn new_uninit(location: &Location, len: usize) -> Self {
@@ -34,7 +34,7 @@ impl<T: Prm> DeviceBuffer<T> {
         .flags(MemFlags::READ_WRITE)
         .len(len)
         .build()
-        .map(|mem| DeviceBuffer { mem })
+        .map(|mem| Buffer { mem })
         .unwrap()
     }
     /// Create buffer filled with a single value.
@@ -45,7 +45,7 @@ impl<T: Prm> DeviceBuffer<T> {
         .len(len)
         .fill_val(value.to_dev())
         .build()
-        .map(|mem| DeviceBuffer { mem })
+        .map(|mem| Buffer { mem })
         .unwrap()
     }
     /// Length of the buffer.
@@ -103,7 +103,7 @@ impl<T: Prm> DeviceBuffer<T> {
     }
 }
 
-impl<T: Prm> Clone for DeviceBuffer<T> {
+impl<T: Prm + Interop> Clone for Buffer<T> {
     fn clone(&self) -> Self {
         self.clone_to(&self.location())
     }

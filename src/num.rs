@@ -60,6 +60,14 @@ impl One for bool {
 }
 
 
+/// Type that could be put in tensor.
+pub trait Prm : Copy + PartialEq + Zero + One {}
+
+impl<T: Num + Copy> Prm for T {}
+
+impl Prm for bool {}
+
+
 #[cfg(feature = "device")]
 mod interop {
     use super::*;
@@ -185,20 +193,5 @@ mod interop {
         }
     }
 }
-
 #[cfg(feature = "device")]
 pub use interop::*;
-
-/// Type that could be put in tensor.
-#[cfg(not(feature = "device"))]
-pub trait Prm : Copy + PartialEq + Zero + One {}
-#[cfg(not(feature = "device"))]
-impl<T: Num + Copy> Prm for T {}
-
-/// Type that could be put in tensor.
-#[cfg(feature = "device")]
-pub trait Prm : Copy + PartialEq + Zero + One + Interop {}
-#[cfg(feature = "device")]
-impl<T: Num + Interop + Copy> Prm for T {}
-
-impl Prm for bool {}
