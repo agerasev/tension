@@ -34,10 +34,10 @@ pub enum Index {
 
 /// Tensor structure.
 /// It consists of a contiguous one-dimensional array and a shape.
-#[derive(Clone)]
+/// Tensor tries to reuse resources as long as possible and implements copy-on-write mechanism.
 pub struct Tensor<T: Prm> {
     shape: Vec<usize>,
-    shared_data: Rc<Buffer<T>>,
+    buffer: Rc<Buffer<T>>,
 }
 
 impl<T: Prm> Tensor<T> {
@@ -46,7 +46,7 @@ impl<T: Prm> Tensor<T> {
         if rc_buffer.len() == shape.iter().product() {
             Ok(Self {
                 shape: shape.iter().cloned().collect(),
-                shared_data: rc_buffer,
+                buffer: rc_buffer,
             })
         } else {
             Err(Error::ShapeMismatch(format!(
@@ -93,18 +93,18 @@ impl<T: Prm> Tensor<T> {
     /// Returns a new tensor that shares the same data but has other shape.
     /// Failed if the product of all shape dimensions is not equal to buffer size.
     pub fn reshape(&self, shape: &[usize]) -> Result<Tensor<T>, Error> {
-        Self::from_shared_buffer(self.shared_data.clone(), shape)
+        Self::from_shared_buffer(self.buffer.clone(), shape)
     }
     /// Load flattened data from tensor to slice.
     pub fn load(&self, dst: &mut [T]) -> Result<(), Error> {
-        self.shared_data.load(dst)
+        self.buffer.load(dst)
     }
     /// Store data from slice to a tensor in a flattened manner.
     pub fn store(&mut self, src: &[T]) -> Result<(), Error> {
-        match Rc::get_mut(&mut self.shared_data) {
+        match Rc::get_mut(&mut self.buffer) {
             Some(buffer) => buffer.store(src),
             None => Err(Error::NotExclusive(
-                format!("Tensor data have {} owners", Rc::strong_count(&self.shared_data))
+                format!("Tensor data have {} owners", Rc::strong_count(&self.buffer))
             ))
         }
     }
