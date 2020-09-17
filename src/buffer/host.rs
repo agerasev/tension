@@ -3,11 +3,11 @@ use crate::{Prm};
 
 /// Buffer that stores data on the host. Simply a wrapper around `Vec`.
 #[derive(Clone)]
-pub struct Buffer<T: Prm> {
+pub struct HostBuffer<T: Prm> {
     vec: Vec<T>,
 }
 
-impl<T: Prm> Buffer<T> {
+impl<T: Prm> HostBuffer<T> {
     /// Create uninitialzed buffer.
     /// This is unsafe method, but it is helpful for allocation of storage for some subsequent operation.
     pub unsafe fn new_uninit(len: usize) -> Self {

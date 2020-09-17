@@ -27,7 +27,7 @@ pub enum Index {
     Range(Range),
 }
 
-pub trait Tensor<T: Prm> {
+pub trait TensorTrait<T: Prm> {
     /// Shape of the tensor - slice containing all tensor dimensions.
     fn shape(&self) -> &[usize];
 

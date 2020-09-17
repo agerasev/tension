@@ -1,5 +1,7 @@
-use crate::{Prm, Interop};
-use super::host::{Buffer as HostBuffer};
+use crate::{
+    Prm, Interop,
+    HostBuffer,
+};
 
 use ocl::{Buffer as OclBuffer, Queue, MemFlags};
 
@@ -7,54 +9,54 @@ use ocl::{Buffer as OclBuffer, Queue, MemFlags};
 /// Buffer location.
 /// For now it's simply the wrapper around `ocl::Queue`, but it could be changed in future.
 #[derive(Clone, Debug)]
-pub struct Location(Queue);
+pub struct DeviceLocation(Queue);
 
-impl Location {
+impl DeviceLocation {
     pub fn eq_queue(aq: &Queue, bq: &Queue) -> bool {
         aq.as_ptr() == bq.as_ptr()
     }
 }
 
-impl PartialEq for Location {
+impl PartialEq for DeviceLocation {
     fn eq(&self, other: &Self) -> bool {
-        Location::eq_queue(&self.0, &other.0)
+        DeviceLocation::eq_queue(&self.0, &other.0)
     }
 }
 
 /// Buffer that stores data on device. Wrapper over OpenCL buffer.
-pub struct Buffer<T: Prm + Interop> {
+pub struct DeviceBuffer<T: Prm + Interop> {
     mem: OclBuffer<T::Dev>,
 }
-impl<T: Prm + Interop> Buffer<T> {
+impl<T: Prm + Interop> DeviceBuffer<T> {
     /// Create uninitialzed buffer.
     /// This is unsafe method, but it is helpful for allocation of storage for some subsequent operation.
-    pub unsafe fn new_uninit(location: &Location, len: usize) -> Self {
+    pub unsafe fn new_uninit(location: &DeviceLocation, len: usize) -> Self {
         OclBuffer::builder()
         .queue(location.0.clone())
         .flags(MemFlags::READ_WRITE)
         .len(len)
         .build()
-        .map(|mem| Buffer { mem })
+        .map(|mem| DeviceBuffer { mem })
         .unwrap()
     }
     /// Create buffer filled with a single value.
-    pub fn new_filled(location: &Location, len: usize, value: T) -> Self {
+    pub fn new_filled(location: &DeviceLocation, len: usize, value: T) -> Self {
         OclBuffer::builder()
         .queue(location.0.clone())
         .flags(MemFlags::READ_WRITE)
         .len(len)
         .fill_val(value.to_dev())
         .build()
-        .map(|mem| Buffer { mem })
+        .map(|mem| DeviceBuffer { mem })
         .unwrap()
     }
     /// Length of the buffer.
     pub fn len(&self) -> usize {
         self.mem.len()
     }
-    /// Location of the buffer.
-    pub fn location(&self) -> Location {
-        Location(self.mem.default_queue().unwrap().clone())
+    /// DeviceLocation of the buffer.
+    pub fn location(&self) -> DeviceLocation {
+        DeviceLocation(self.mem.default_queue().unwrap().clone())
     }
     /// Default command queue for buffer.
     pub fn queue(&self) -> &Queue {
@@ -71,7 +73,7 @@ impl<T: Prm + Interop> Buffer<T> {
     /// Copies content to `self` from another buffer.
     pub fn copy_from(&mut self, src: &Self) {
         assert_eq!(self.len(), src.len());
-        if Location::eq_queue(self.queue(), src.queue()) {
+        if DeviceLocation::eq_queue(self.queue(), src.queue()) {
             src.mem.copy(&mut self.mem, None, None).enq().unwrap();
         } else {
             let mut tmp = Vec::<T::Dev>::new();
@@ -96,14 +98,14 @@ impl<T: Prm + Interop> Buffer<T> {
     }
 
     /// Creates a new buffer in a specified location and copies the content to it.
-    pub fn clone_to(&self, location: &Location) -> Self {
+    pub fn clone_to(&self, location: &DeviceLocation) -> Self {
         let mut dst = unsafe { Self::new_uninit(location, self.len()) };
         dst.copy_from(self);
         dst
     }
 }
 
-impl<T: Prm + Interop> Clone for Buffer<T> {
+impl<T: Prm + Interop> Clone for DeviceBuffer<T> {
     fn clone(&self) -> Self {
         self.clone_to(&self.location())
     }

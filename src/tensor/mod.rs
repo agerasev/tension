@@ -1,13 +1,13 @@
-pub mod common;
-pub use common::{Tensor as CommonTensor};
+mod common;
+pub use common::*;
 
-pub mod host;
-pub use host::{Tensor as HostTensor};
+mod host;
+pub use host::*;
 
 #[cfg(feature = "device")]
-pub mod device;
+mod device;
 #[cfg(feature = "device")]
-pub use device::{Tensor as DeviceTensor};
+pub use device::*;
 
 #[cfg(test)]
 mod test;

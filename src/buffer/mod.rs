@@ -1,12 +1,7 @@
-pub mod host;
-pub use host::{
-    Buffer as HostBuffer,
-};
+mod host;
+pub use host::*;
 
 #[cfg(feature = "device")]
-pub mod device;
+mod device;
 #[cfg(feature = "device")]
-pub use device::{
-    Location as DeviceLocation,
-    Buffer as DeviceBuffer,
-};
+pub use device::*;

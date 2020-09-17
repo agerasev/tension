@@ -1,4 +1,4 @@
-use crate::{prelude::*, host::Tensor};
+use crate::{prelude::*, HostTensor as Tensor};
 
 #[test]
 fn new_filled() {
