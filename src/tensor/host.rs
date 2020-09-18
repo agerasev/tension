@@ -1,6 +1,6 @@
 use crate::{
-    Prm,
-    TensorTrait, HostBuffer,
+    Prm, Buffer,
+    Tensor, HostBuffer,
 };
 use std::{
     rc::Rc,
@@ -49,7 +49,7 @@ impl<T: Prm> HostTensor<T> {
     }
 }
 
-impl<T: Prm> TensorTrait<T> for HostTensor<T> {
+impl<T: Prm> Tensor<T> for HostTensor<T> {
     fn shape(&self) -> &[usize] {
         return self.shape.as_slice();
     }

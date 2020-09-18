@@ -1,6 +1,6 @@
 use crate::{
     Prm, Interop,
-    HostBuffer,
+    Buffer, HostBuffer,
 };
 
 use ocl::{Buffer as OclBuffer, Queue, MemFlags};
@@ -31,10 +31,11 @@ pub struct DeviceBuffer<T: Prm + Interop> {
     mem: OclBuffer<T::Dev>,
     ctx: DeviceContext,
 }
-impl<T: Prm + Interop> DeviceBuffer<T> {
-    /// Create uninitialzed buffer.
-    /// This is unsafe method, but it is helpful for allocation of storage for some subsequent operation.
-    pub unsafe fn new_uninit(context: &DeviceContext, len: usize) -> Self {
+
+impl<T: Prm + Interop> Buffer<T> for DeviceBuffer<T> {
+    type Context = DeviceContext;
+
+    unsafe fn new_uninit_in(context: &DeviceContext, len: usize) -> Self {
         OclBuffer::builder()
         .queue(context.queue().clone())
         .flags(MemFlags::READ_WRITE)
@@ -43,8 +44,8 @@ impl<T: Prm + Interop> DeviceBuffer<T> {
         .map(|mem| DeviceBuffer { mem, ctx: context.clone() })
         .unwrap()
     }
-    /// Create buffer filled with a single value.
-    pub fn new_filled(context: &DeviceContext, len: usize, value: T) -> Self {
+
+    fn new_filled_in(context: &DeviceContext, len: usize, value: T) -> Self {
         OclBuffer::builder()
         .queue(context.queue().clone())
         .flags(MemFlags::READ_WRITE)
@@ -54,24 +55,21 @@ impl<T: Prm + Interop> DeviceBuffer<T> {
         .map(|mem| DeviceBuffer { mem, ctx: context.clone() })
         .unwrap()
     }
-    /// Length of the buffer.
-    pub fn len(&self) -> usize {
+
+    fn len(&self) -> usize {
         self.mem.len()
     }
-    /// DeviceContext of the buffer.
-    pub fn context(&self) -> &DeviceContext {
+    fn context(&self) -> &DeviceContext {
         &self.ctx
     }
-    /// Loads data from buffer to slice.
-    pub fn load(&self, dst: &mut [T]) {
+
+    fn load(&self, dst: &mut [T]) {
         T::load_from_buffer(dst, &self.mem);
     }
-    /// Stores data from slice to buffer.
-    pub fn store(&mut self, src: &[T]) {
+    fn store(&mut self, src: &[T]) {
         T::store_to_buffer(&mut self.mem, src);
     }
-    /// Copies content to `self` from another buffer.
-    pub fn copy_from(&mut self, src: &Self) {
+    fn copy_from(&mut self, src: &Self) {
         assert_eq!(self.len(), src.len());
         if self.context() == src.context() {
             src.mem.copy(&mut self.mem, None, None).enq().unwrap();
@@ -82,10 +80,12 @@ impl<T: Prm + Interop> DeviceBuffer<T> {
             .unwrap();
         }
     }
-    /// Copies content from `self` to another buffer.
-    pub fn copy_to(&self, dst: &mut Self) {
+    fn copy_to(&self, dst: &mut Self) {
         dst.copy_from(self);
     }
+}
+
+impl<T: Prm + Interop> DeviceBuffer<T> {
     /// Copies content to `self` from host buffer.
     pub fn copy_from_host(&mut self, src: &HostBuffer<T>) {
         assert_eq!(self.len(), src.len());
@@ -99,7 +99,7 @@ impl<T: Prm + Interop> DeviceBuffer<T> {
 
     /// Creates a new buffer in a specified context and copies the content to it.
     pub fn clone_to(&self, context: &DeviceContext) -> Self {
-        let mut dst = unsafe { Self::new_uninit(context, self.len()) };
+        let mut dst = unsafe { Self::new_uninit_in(context, self.len()) };
         dst.copy_from(self);
         dst
     }

@@ -1,5 +1,5 @@
 use crate::{
-    Prm
+    Prm,
 };
 
 /// Struture representing range for one dimension for tensor slicing operation.
@@ -27,7 +27,7 @@ pub enum Index {
     Range(Range),
 }
 
-pub trait TensorTrait<T: Prm> {
+pub trait Tensor<T: Prm> {
     /// Shape of the tensor - slice containing all tensor dimensions.
     fn shape(&self) -> &[usize];
 
