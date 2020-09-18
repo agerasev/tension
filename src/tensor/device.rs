@@ -1,6 +1,6 @@
 use crate::{
     Prm, Interop,
-    TensorTrait, DeviceBuffer, DeviceLocation,
+    TensorTrait, DeviceBuffer, DeviceContext,
 };
 use std::{
     rc::Rc,
@@ -30,16 +30,16 @@ impl<T: Prm + Interop> DeviceTensor<T> {
     }
 
     /// Create unitialized tensor in the specified location.
-    pub unsafe fn new_uninit(loc: &DeviceLocation, shape: &[usize]) -> Self {
-        Self::from_buffer(DeviceBuffer::new_uninit(loc, shape.iter().product()), shape)
+    pub unsafe fn new_uninit(context: &DeviceContext, shape: &[usize]) -> Self {
+        Self::from_buffer(DeviceBuffer::new_uninit(context, shape.iter().product()), shape)
     }
     /// Create tensor filled with value in the specified location.
-    pub fn new_filled(loc: &DeviceLocation, shape: &[usize], value: T) -> Self {
-        Self::from_buffer(DeviceBuffer::new_filled(loc, shape.iter().product(), value), shape)
+    pub fn new_filled(context: &DeviceContext, shape: &[usize], value: T) -> Self {
+        Self::from_buffer(DeviceBuffer::new_filled(context, shape.iter().product(), value), shape)
     }
     /// Create tensor filled with zeros in the specified location.
-    pub fn new_zeroed(loc: &DeviceLocation, shape: &[usize]) -> Self {
-        Self::new_filled(loc, shape, T::zero())
+    pub fn new_zeroed(context: &DeviceContext, shape: &[usize]) -> Self {
+        Self::new_filled(context, shape, T::zero())
     }
 }
 
