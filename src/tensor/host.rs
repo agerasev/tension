@@ -18,23 +18,11 @@ pub struct Iter<'a, T: Prm> {
 /// Tensor tries to reuse resources as long as possible and implements copy-on-write mechanism.
 pub struct HostTensor<T: Prm> {
     shape: Vec<usize>,
+    strides: Vec<isize>,
     buffer: Rc<HostBuffer<T>>,
 }
 
 impl<T: Prm> HostTensor<T> {
-    /// Create tensor from shared buffer and shape
-    fn from_shared_buffer(rc_buffer: Rc<HostBuffer<T>>, shape: &[usize]) -> Self {
-        assert_eq!(rc_buffer.len(), shape.iter().product());
-        Self {
-            shape: shape.iter().cloned().collect(),
-            buffer: rc_buffer,
-        }
-    }
-    /// Create tensor from specified buffer and shape
-    fn from_buffer(buffer: HostBuffer<T>, shape: &[usize]) -> Self {
-        Self::from_shared_buffer(Rc::new(buffer), shape)
-    }
-
     /// Create unitialized tensor
     pub unsafe fn new_uninit(shape: &[usize]) -> Self {
         Self::from_buffer(HostBuffer::new_uninit(shape.iter().product()), shape)
@@ -49,7 +37,34 @@ impl<T: Prm> HostTensor<T> {
     }
 }
 
-impl<T: Prm> Tensor<T> for HostTensor<T> {
+impl<T: Prm> Tensor<T, HostBuffer<T>> for HostTensor<T> {
+    unsafe fn from_shared_buffer(rc_buffer: Rc<HostBuffer<T>>, shape: &[usize], strides: &[isize]) -> Self {
+        // FIXME: Check all elements are inside the buffer
+        //assert_eq!(rc_buffer.len(), shape.iter().product());
+        Self {
+            shape: shape.iter().cloned().collect(),
+            strides: strides.iter().cloned().collect(),
+            buffer: rc_buffer,
+        }
+    }
+
+    unsafe fn from_buffer(buffer: HostBuffer<T>, shape: &[usize], strides: &[isize]) -> Self {
+        Self::from_shared_buffer(Rc::new(buffer), shape)
+    }
+
+    /// Create unitialized tensor
+    unsafe fn new_uninit_in(_: &(), shape: &[usize]) -> Self {
+        Self::from_buffer(HostBuffer::new_uninit(shape.iter().product()), shape)
+    }
+    /// Create tensor filled with value on the specified hardware
+    fn new_filled_in(_: &(), shape: &[usize], value: T) -> Self {
+        Self::from_buffer(HostBuffer::new_filled(shape.iter().product(), value), shape)
+    }
+    /// Create tensor filled with zeros on the specified hardware
+    fn new_zeroed_in(_: &(), shape: &[usize]) -> Self {
+        Self::new_filled(shape, T::zero())
+    }
+
     fn shape(&self) -> &[usize] {
         return self.shape.as_slice();
     }

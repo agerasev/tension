@@ -61,7 +61,7 @@ impl One for bool {
 
 
 /// Type that could be put in tensor.
-pub trait Prm : Copy + PartialEq + Zero + One {}
+pub trait Prm : Sized + Copy + PartialEq + Zero + One {}
 
 impl<T: Num + Copy> Prm for T {}
 
