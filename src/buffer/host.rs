@@ -23,9 +23,12 @@ impl<T: Prm> Buffer<T> for HostBuffer<T> {
         vec.resize(len, value);
         Self { vec }
     }
-    
+
     fn len(&self) -> usize {
         self.vec.len()
+    }
+    fn context(&self) -> &() {
+        &()
     }
 
     fn load(&self, dst: &mut [T]) {

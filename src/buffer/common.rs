@@ -13,6 +13,8 @@ pub trait Buffer<T: Prm>: Sized {
 
     /// Returns the length of the buffer.
     fn len(&self) -> usize;
+    /// Context of the buffer.
+    fn context(&self) -> &Self::Context;
 
     /// Loads data from buffer to slice.
     fn load(&self, dst: &mut [T]);
