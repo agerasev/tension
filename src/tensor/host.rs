@@ -1,25 +1,19 @@
 use crate::{
     Prm,
-    Tensor, HostBuffer,
-};
-use std::{
-    rc::Rc,
+    HostBuffer,
+    Tensor, CommonTensor,
 };
 
-/*
-pub struct Iter<'a, T: Prm> {
-    tensor: &'a HostTensor<T>,
-    indices: Vec<usize>,
-}
-*/
+
+type InnerTensor<T> = CommonTensor<T, HostBuffer<T>>;
 
 /// Tensor structure.
 /// It consists of a contiguous one-dimensional array and a shape.
 /// Tensor tries to reuse resources as long as possible and implements copy-on-write mechanism.
 pub struct HostTensor<T: Prm> {
-    shape: Vec<usize>,
-    buffer: Rc<HostBuffer<T>>,
+    inner: InnerTensor<T>,
 }
+
 
 impl<T: Prm> HostTensor<T> {
     /// Create unitialized tensor
@@ -39,21 +33,28 @@ impl<T: Prm> HostTensor<T> {
 impl<T: Prm> Tensor<T> for HostTensor<T> {
     type Buffer = HostBuffer<T>;
 
-    unsafe fn from_shared_buffer_unchecked(rc_buffer: Rc<HostBuffer<T>>, shape: &[usize]) -> Self {
-        Self {
-            shape: shape.iter().cloned().collect(),
-            buffer: rc_buffer,
-        }
+    unsafe fn new_uninit_in(_: &(), shape: &[usize]) -> Self {
+        Self { inner: InnerTensor::<T>::new_uninit_in(&(), shape) }
+    }
+    fn new_filled_in(_: &(), shape: &[usize], value: T) -> Self {
+        Self { inner: InnerTensor::<T>::new_filled_in(&(), shape, value) }
+    }
+    fn new_zeroed_in(_: &(), shape: &[usize]) -> Self {
+        Self { inner: InnerTensor::<T>::new_zeroed_in(&(), shape) }
     }
 
     fn shape(&self) -> &[usize] {
-        self.shape.as_slice()
+        self.inner.shape()
     }
 
-    unsafe fn shared_buffer(&self) -> &Rc<HostBuffer<T>> {
-        &self.buffer
+    fn reshape(&self, shape: &[usize]) -> Self {
+        Self { inner: self.inner.reshape(shape) }
     }
-    unsafe fn shared_buffer_mut(&mut self) -> &mut Rc<HostBuffer<T>> {
-        &mut self.buffer
+
+    fn load(&self, dst: &mut [T]) {
+        self.inner.load(dst);
+    }
+    fn store(&mut self, src: &[T]) {
+        self.inner.store(src);
     }
 }

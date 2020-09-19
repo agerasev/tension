@@ -1,5 +1,6 @@
 use std::{
     rc::Rc,
+    marker::PhantomData,
 };
 use crate::{
     Prm, Buffer,
@@ -36,67 +37,80 @@ pub trait Tensor<T: Prm>: Sized {
     /// Inner buffer type.
     type Buffer : Buffer<T>;
 
-    /// Create tensor from shared buffer and shape
-    unsafe fn from_shared_buffer_unchecked(rc_buffer: Rc<Self::Buffer>, shape: &[usize]) -> Self;
-
-    /// Create tensor from shared buffer and shape
-    fn from_shared_buffer(rc_buffer: Rc<Self::Buffer>, shape: &[usize]) -> Self {
-        //for i in 0..shape.len() {
-            // TODO: Check all indices are inside bounds
-        //}
-        unsafe { Self::from_shared_buffer_unchecked(rc_buffer, shape) }
-    }
-    /// Create tensor from specified buffer and shape
-    fn from_buffer(buffer: Self::Buffer, shape: &[usize]) -> Self {
-        Self::from_shared_buffer(Rc::new(buffer), shape)
-    }
-    /// Create tensor from specified buffer and shape
-    fn from_buffer_plain(buffer: Self::Buffer, shape: &[usize]) -> Self {
-        assert_eq!(buffer.len(), shape.iter().product());
-        Self::from_buffer(
-            buffer, shape,
-        )
-    }
-
     /// Create unitialized tensor
-    unsafe fn new_uninit_in(context: &<Self::Buffer as Buffer<T>>::Context, shape: &[usize]) -> Self {
-        Self::from_buffer_plain(
-            Self::Buffer::new_uninit_in(context, shape.iter().product()),
-            shape,
-        )
-    }
+    unsafe fn new_uninit_in(context: &<Self::Buffer as Buffer<T>>::Context, shape: &[usize]) -> Self;
     /// Create tensor filled with value on the specified hardware
-    fn new_filled_in(context: &<Self::Buffer as Buffer<T>>::Context, shape: &[usize], value: T) -> Self {
-        Self::from_buffer_plain(
-            Self::Buffer::new_filled_in(context, shape.iter().product(), value),
-            shape,
-        )
-    }
+    fn new_filled_in(context: &<Self::Buffer as Buffer<T>>::Context, shape: &[usize], value: T) -> Self;
     /// Create tensor filled with zeros on the specified hardware
-    fn new_zeroed_in(context: &<Self::Buffer as Buffer<T>>::Context, shape: &[usize]) -> Self {
-        Self::new_filled_in(context, shape, T::zero())
-    }
-
-    /// Returns reference to underlying shared buffer.
-    unsafe fn shared_buffer(&self) -> &Rc<Self::Buffer>;
-    /// Returns mutable reference to underlying shared buffer.
-    unsafe fn shared_buffer_mut(&mut self) -> &mut Rc<Self::Buffer>;
+    fn new_zeroed_in(context: &<Self::Buffer as Buffer<T>>::Context, shape: &[usize]) -> Self;
 
     /// Shape of the tensor - a slice containing all tensor dimensions.
     fn shape(&self) -> &[usize];
 
     /// Returns a new tensor that shares the same data but has other shape.
     /// Failed if the product of all shape dimensions is not equal to buffer size.
-    fn reshape(&self, shape: &[usize]) -> Self {
-        Self::from_shared_buffer(unsafe { self.shared_buffer() }.clone(), shape)
-    }
-    
+    fn reshape(&self, shape: &[usize]) -> Self;
+
     /// Load flattened data from tensor to slice.
-    fn load(&self, dst: &mut [T]) {
-        unsafe { self.shared_buffer() }.load(dst);
-    }
+    fn load(&self, dst: &mut [T]);
     /// Store data from slice to a tensor in a flattened manner.
+    fn store(&mut self, src: &[T]);
+}
+
+
+pub struct CommonTensor<T: Prm, Buf: Buffer<T>> {
+    shared_buffer: Rc<Buf>,
+    shape: Vec<usize>,
+    phantom: PhantomData<T>,
+}
+
+impl<T: Prm, Buf: Buffer<T>> CommonTensor<T, Buf> {
+    /// Create tensor from shared buffer and shape
+    fn from_shared_buffer(rc_buffer: Rc<Buf>, shape: &[usize]) -> Self {
+        Self {
+            shared_buffer: rc_buffer,
+            shape: shape.iter().cloned().collect(),
+            phantom: PhantomData::<T>,
+        }
+    }
+    /// Create tensor from specified buffer and shape
+    fn from_buffer(buffer: Buf, shape: &[usize]) -> Self {
+        assert_eq!(buffer.len(), shape.iter().product());
+        Self::from_shared_buffer(Rc::new(buffer), shape)
+    }
+}
+
+impl<T: Prm, Buf: Buffer<T>> Tensor<T> for CommonTensor<T, Buf> {
+    type Buffer = Buf;
+
+    unsafe fn new_uninit_in(context: &Buf::Context, shape: &[usize]) -> Self {
+        Self::from_buffer(
+            Self::Buffer::new_uninit_in(context, shape.iter().product()),
+            shape,
+        )
+    }
+    fn new_filled_in(context: &Buf::Context, shape: &[usize], value: T) -> Self {
+        Self::from_buffer(
+            Self::Buffer::new_filled_in(context, shape.iter().product(), value),
+            shape,
+        )
+    }
+    fn new_zeroed_in(context: &Buf::Context, shape: &[usize]) -> Self {
+        Self::new_filled_in(context, shape, T::zero())
+    }
+
+    fn shape(&self) -> &[usize] {
+        self.shape.as_slice()
+    }
+
+    fn reshape(&self, shape: &[usize]) -> Self {
+        Self::from_shared_buffer(self.shared_buffer.clone(), shape)
+    }
+
+    fn load(&self, dst: &mut [T]) {
+        self.shared_buffer.load(dst);
+    }
     fn store(&mut self, src: &[T]) {
-        Rc::make_mut(unsafe { self.shared_buffer_mut() }).store(src);
+        Rc::make_mut(&mut self.shared_buffer).store(src);
     }
 }
