@@ -1,7 +1,7 @@
 use crate::{Prm};
 
 
-pub trait Buffer<T: Prm> {
+pub trait Buffer<T: Prm>: Sized + Clone {
     /// Context for buffer allocation.
     type Context;
 
