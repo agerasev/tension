@@ -33,6 +33,7 @@ pub enum Index {
     NewAxis,
 }
 
+/// Tensor a.k.a. N-dimensional array.
 pub trait Tensor<T: Prm>: Sized {
     /// Inner buffer type.
     type Buffer : Buffer<T>;
@@ -57,7 +58,7 @@ pub trait Tensor<T: Prm>: Sized {
     fn store(&mut self, src: &[T]);
 }
 
-
+/// An intermediate structure that contains most of the Tensor functionality.
 pub struct CommonTensor<T: Prm, Buf: Buffer<T>> {
     shared_buffer: Rc<Buf>,
     shape: Vec<usize>,

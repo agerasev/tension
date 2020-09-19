@@ -1,3 +1,4 @@
+use std::iter::Iterator;
 use crate::{
     Prm,
     HostBuffer,
@@ -14,6 +15,15 @@ pub struct HostTensor<T: Prm> {
     inner: InnerTensor<T>,
 }
 
+pub struct HostTensorIter<'a, T: Prm> {
+    tensor: &'a HostTensor<T>,
+    pos: Vec<usize>,
+}
+
+pub struct HostTensorIterMut<'a, T: Prm> {
+    tensor: &'a mut HostTensor<T>,
+    pos: Vec<usize>,
+}
 
 impl<T: Prm> HostTensor<T> {
     /// Create unitialized tensor
@@ -56,5 +66,19 @@ impl<T: Prm> Tensor<T> for HostTensor<T> {
     }
     fn store(&mut self, src: &[T]) {
         self.inner.store(src);
+    }
+}
+
+impl<'a, T: Prm> Iterator for HostTensorIter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        
+    }
+}
+
+impl<'a, T: Prm> Iterator for HostTensorIterMut<'a, T> {
+    type Item = &'a mut T;
+    fn next(&mut self) -> Option<Self::Item> {
+        
     }
 }
