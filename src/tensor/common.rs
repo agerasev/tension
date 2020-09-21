@@ -33,6 +33,31 @@ pub enum Index {
     NewAxis,
 }
 
+/// Structure representing shape of the tensor.
+///
+/// Tensor supposed to have an infinite number of axes. E.g. tensor of shape `(x,y,z)` supposed to be `(x,y,z,1,1,1,...)`.
+/// That means that trailing axes of size `1` are ignored, so shapes `(x,y,z)` and `(x,y,z,1)` are equal.
+///
+/// There may be a tensor of shape `(,)` (0-dimensional tensor or scalar), but axes of size `0` are not allowed.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Shape {
+    vec: Vec<usize>,
+}
+
+impl Shape {
+    /// Remove trailing `1`s.
+    fn detrail(&mut self) {
+        let non_one = self.vec.iter().cloned().rev().skip_while(|&x| x == 1).count();
+        self.vec.truncate(non_one);
+    }
+
+    pub fn new(slice: &[usize]) -> Self {
+        let mut self_ = Self { vec: slice.iter().cloned().collect() };
+        self_.detrail();
+        self_
+    }
+}
+
 /// Tensor a.k.a. N-dimensional array.
 pub trait Tensor<T: Prm>: Sized {
     /// Inner buffer type.
@@ -60,24 +85,33 @@ pub trait Tensor<T: Prm>: Sized {
 
 /// An intermediate structure that contains most of the Tensor functionality.
 pub struct CommonTensor<T: Prm, Buf: Buffer<T>> {
-    shared_buffer: Rc<Buf>,
-    shape: Vec<usize>,
+    pub buffer: Rc<Buf>,
+    pub shape: Vec<usize>,
     phantom: PhantomData<T>,
 }
 
 impl<T: Prm, Buf: Buffer<T>> CommonTensor<T, Buf> {
     /// Create tensor from shared buffer and shape
-    fn from_shared_buffer(rc_buffer: Rc<Buf>, shape: &[usize]) -> Self {
+    pub fn from_shared_buffer(rc_buffer: Rc<Buf>, shape: &[usize]) -> Self {
         Self {
-            shared_buffer: rc_buffer,
+            buffer: rc_buffer,
             shape: shape.iter().cloned().collect(),
             phantom: PhantomData::<T>,
         }
     }
     /// Create tensor from specified buffer and shape
-    fn from_buffer(buffer: Buf, shape: &[usize]) -> Self {
+    pub fn from_buffer(buffer: Buf, shape: &[usize]) -> Self {
         assert_eq!(buffer.len(), shape.iter().product());
         Self::from_shared_buffer(Rc::new(buffer), shape)
+    }
+
+    /// Provides access to inner buffer.
+    pub fn buffer(&self) -> &Buf {
+        self.buffer.as_ref()
+    }
+    /// Clones inner buffer if it is shared and provides mutable access to it.
+    pub fn buffer_mut(&mut self) -> &mut Buf {
+        Rc::make_mut(&mut self.buffer)
     }
 }
 
@@ -105,13 +139,27 @@ impl<T: Prm, Buf: Buffer<T>> Tensor<T> for CommonTensor<T, Buf> {
     }
 
     fn reshape(&self, shape: &[usize]) -> Self {
-        Self::from_shared_buffer(self.shared_buffer.clone(), shape)
+        Self::from_shared_buffer(self.buffer.clone(), shape)
     }
 
     fn load(&self, dst: &mut [T]) {
-        self.shared_buffer.load(dst);
+        self.buffer.load(dst);
     }
     fn store(&mut self, src: &[T]) {
-        Rc::make_mut(&mut self.shared_buffer).store(src);
+        Rc::make_mut(&mut self.buffer).store(src);
     }
 }
+
+/*
+#[test]
+fn new_filled() {
+    let value: i32 = -123;
+    let a = Tensor::new_filled(&[4, 3, 2], value);
+
+    let mut v = Vec::new();
+    v.resize(24, 0);
+    a.load(v.as_mut_slice());
+
+    assert!(v.iter().all(|&x| x == value));
+}
+*/

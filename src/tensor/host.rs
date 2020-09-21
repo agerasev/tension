@@ -18,12 +18,13 @@ pub struct HostTensor<T: Prm> {
 pub struct HostTensorIter<'a, T: Prm> {
     tensor: &'a HostTensor<T>,
     pos: Vec<usize>,
+    exhausted: bool,
 }
 
-pub struct HostTensorIterMut<'a, T: Prm> {
-    tensor: &'a mut HostTensor<T>,
-    pos: Vec<usize>,
-}
+//pub struct HostTensorIterMut<'a, T: Prm> {
+//    tensor: &'a mut HostTensor<T>,
+//    pos: Vec<usize>,
+//}
 
 impl<T: Prm> HostTensor<T> {
     /// Create unitialized tensor
@@ -37,6 +38,15 @@ impl<T: Prm> HostTensor<T> {
     /// Create tensor filled with zeros on the specified hardware
     pub fn new_zeroed(shape: &[usize]) -> Self {
         Self::new_zeroed_in(&(), shape)
+    }
+
+    /// Provideas access to underlying memory.
+    pub fn as_slice(&self) -> &[T] {
+        self.inner.buffer().as_slice()
+    }
+    /// Provideas mutable access to underlying memory.
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        self.inner.buffer_mut().as_mut_slice()
     }
 }
 
@@ -69,16 +79,50 @@ impl<T: Prm> Tensor<T> for HostTensor<T> {
     }
 }
 
-impl<'a, T: Prm> Iterator for HostTensorIter<'a, T> {
-    type Item = &'a T;
-    fn next(&mut self) -> Option<Self::Item> {
-        
+impl <'a, T: Prm> HostTensorIter<'a, T> {
+    fn new(tensor: &'a HostTensor<T>) -> Self {
+        Self {
+            tensor,
+            pos: tensor.shape().iter().map(|_| 0).collect(),
+            exhausted: false,
+        }
     }
 }
 
-impl<'a, T: Prm> Iterator for HostTensorIterMut<'a, T> {
-    type Item = &'a mut T;
-    fn next(&mut self) -> Option<Self::Item> {
-        
+fn next_pos(pos: &mut [usize], shape: &[usize]) -> bool {
+    let len = pos.len();
+    assert_eq!(len, shape.len());
+    if len > 0 {
+        if pos[len - 1] + 1 < shape[len - 1] {
+            pos[len - 1] += 1;
+            true
+        } else {
+            if next_pos(&mut pos[..(len - 1)], &shape[..(len - 1)]) {
+                pos[len - 1] = 0;
+                true
+            } else {
+                false
+            }
+        }
+    } else {
+        false
     }
 }
+
+//impl <'a, T: Prm> HostTensorIterMut<'a, T> {
+//
+//}
+
+impl<'a, T: Prm> Iterator for HostTensorIter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        let elem = self.tensor.as_slice()[pos]
+    }
+}
+
+//impl<'a, T: Prm> Iterator for HostTensorIterMut<'a, T> {
+//    type Item = &'a mut T;
+//    fn next(&mut self) -> Option<Self::Item> {
+//
+//    }
+//}
