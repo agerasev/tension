@@ -1,9 +1,9 @@
-use crate::{prelude::*, HostTensor as Tensor};
+use crate::{prelude::*, Shape, HostTensor as Tensor};
 
 #[test]
 fn new_filled() {
     let value: i32 = -123;
-    let a = Tensor::new_filled(&[4, 3, 2], value);
+    let a = Tensor::new_filled(&Shape::from([4, 3, 2].as_ref()), value);
 
     let mut v = Vec::new();
     v.resize(24, 0);
@@ -14,7 +14,7 @@ fn new_filled() {
 
 #[test]
 fn new_zeroed() {
-    let a = Tensor::new_zeroed(&[4, 3, 2]);
+    let a = Tensor::new_zeroed(&Shape::from([4, 3, 2].as_ref()));
 
     let mut v = Vec::new();
     v.resize(24, -1);
