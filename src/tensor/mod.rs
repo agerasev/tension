@@ -1,3 +1,6 @@
+mod shape;
+pub use shape::*;
+
 mod common;
 pub use common::*;
 

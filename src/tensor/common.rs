@@ -33,31 +33,6 @@ pub enum Index {
     NewAxis,
 }
 
-/// Structure representing shape of the tensor.
-///
-/// Tensor supposed to have an infinite number of axes. E.g. tensor of shape `(x,y,z)` supposed to be `(x,y,z,1,1,1,...)`.
-/// That means that trailing axes of size `1` are ignored, so shapes `(x,y,z)` and `(x,y,z,1)` are equal.
-///
-/// There may be a tensor of shape `(,)` (0-dimensional tensor or scalar), but axes of size `0` are not allowed.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Shape {
-    vec: Vec<usize>,
-}
-
-impl Shape {
-    /// Remove trailing `1`s.
-    fn detrail(&mut self) {
-        let non_one = self.vec.iter().cloned().rev().skip_while(|&x| x == 1).count();
-        self.vec.truncate(non_one);
-    }
-
-    pub fn new(slice: &[usize]) -> Self {
-        let mut self_ = Self { vec: slice.iter().cloned().collect() };
-        self_.detrail();
-        self_
-    }
-}
-
 /// Tensor a.k.a. N-dimensional array.
 pub trait Tensor<T: Prm>: Sized {
     /// Inner buffer type.
@@ -149,17 +124,3 @@ impl<T: Prm, Buf: Buffer<T>> Tensor<T> for CommonTensor<T, Buf> {
         Rc::make_mut(&mut self.buffer).store(src);
     }
 }
-
-/*
-#[test]
-fn new_filled() {
-    let value: i32 = -123;
-    let a = Tensor::new_filled(&[4, 3, 2], value);
-
-    let mut v = Vec::new();
-    v.resize(24, 0);
-    a.load(v.as_mut_slice());
-
-    assert!(v.iter().all(|&x| x == value));
-}
-*/
