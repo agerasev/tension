@@ -1,7 +1,7 @@
 use crate::{
     Prm, Interop,
     DeviceBuffer, DeviceContext,
-    Tensor, CommonTensor,
+    Shape, Tensor, CommonTensor,
 };
 
 type InnerTensor<T> = CommonTensor<T, DeviceBuffer<T>>;
@@ -18,21 +18,21 @@ impl<T: Prm + Interop> DeviceTensor<T> {}
 impl<T: Prm + Interop> Tensor<T> for DeviceTensor<T> {
     type Buffer = DeviceBuffer<T>;
 
-    unsafe fn new_uninit_in(context: &DeviceContext, shape: &[usize]) -> Self {
+    unsafe fn new_uninit_in(context: &DeviceContext, shape: &Shape) -> Self {
         Self { inner: InnerTensor::<T>::new_uninit_in(context, shape) }
     }
-    fn new_filled_in(context: &DeviceContext, shape: &[usize], value: T) -> Self {
+    fn new_filled_in(context: &DeviceContext, shape: &Shape, value: T) -> Self {
         Self { inner: InnerTensor::<T>::new_filled_in(context, shape, value) }
     }
-    fn new_zeroed_in(context: &DeviceContext, shape: &[usize]) -> Self {
+    fn new_zeroed_in(context: &DeviceContext, shape: &Shape) -> Self {
         Self { inner: InnerTensor::<T>::new_zeroed_in(context, shape) }
     }
 
-    fn shape(&self) -> &[usize] {
+    fn shape(&self) -> &Shape {
         self.inner.shape()
     }
 
-    fn reshape(&self, shape: &[usize]) -> Self {
+    fn reshape(&self, shape: &Shape) -> Self {
         Self { inner: self.inner.reshape(shape) }
     }
 
