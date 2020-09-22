@@ -83,6 +83,10 @@ impl Shape {
     pub fn iter_mut(&mut self) -> IterMut<usize> {
         trim_mut_slice(self.vec.as_mut_slice()).iter_mut()
     }
+    /// Number of items in tensor of this shape.
+    pub fn content(&self) -> usize {
+        self.iter().fold(1, |a, &x| a * x )
+    }
 }
 
 impl Index<usize> for Shape {
@@ -197,5 +201,10 @@ mod tests {
         assert_eq!(shape.slice(2..5), shape![1, 3]);
         assert_eq!(shape.slice(5..10), shape![]);
         assert_eq!(shape.slice(5..), shape![]);
+    }
+
+    #[test]
+    fn content() {
+        assert_eq!(shape![1, 2, 3].content(), 6);
     }
 }

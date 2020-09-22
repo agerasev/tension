@@ -22,3 +22,15 @@ fn new_zeroed() {
 
     assert!(v.iter().all(|&x| x == 0));
 }
+
+#[test]
+fn iter() {
+    let mut a = Tensor::new_zeroed(&Shape::from([1, 2, 3, 4].as_ref()));
+    for i in 0..(2*3*4) {
+        a.as_mut_slice()[i] = i;
+    }
+
+    for (i, v) in a.iter().enumerate() {
+        assert_eq!(*v, i);
+    }
+}

@@ -14,16 +14,17 @@ pub struct HostTensor<T: Prm> {
     inner: InnerTensor<T>,
 }
 
-//pub struct HostTensorIter<'a, T: Prm> {
-//    tensor: &'a HostTensor<T>,
-//    pos: Vec<usize>,
-//    exhausted: bool,
-//}
+struct PositionCounter {
+    shape: Shape,
+    position: Vec<usize>,
+    first: bool,
+    exhausted: bool,
+}
 
-//pub struct HostTensorIterMut<'a, T: Prm> {
-//    tensor: &'a mut HostTensor<T>,
-//    pos: Vec<usize>,
-//}
+pub struct HostTensorIter<'a, T: Prm> {
+    slice: &'a [T],
+    counter: PositionCounter,
+}
 
 impl<T: Prm> HostTensor<T> {
     /// Create unitialized tensor
@@ -46,6 +47,10 @@ impl<T: Prm> HostTensor<T> {
     /// Provideas mutable access to underlying memory.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         self.inner.buffer_mut().as_mut_slice()
+    }
+
+    pub fn iter<'a>(&'a self) -> HostTensorIter<'a, T> {
+        HostTensorIter::new(self)
     }
 }
 
@@ -78,50 +83,74 @@ impl<T: Prm> Tensor<T> for HostTensor<T> {
     }
 }
 
-//impl <'a, T: Prm> HostTensorIter<'a, T> {
-//    fn new(tensor: &'a HostTensor<T>) -> Self {
-//        Self {
-//            tensor,
-//            pos: tensor.shape().iter().map(|_| 0).collect(),
-//            exhausted: false,
-//        }
-//    }
-//}
+impl PositionCounter {
+    fn new(shape: Shape) -> Self {
+        let mut position = Vec::<usize>::new();
+        position.resize(shape.len(), 0);
+        Self {
+            shape, position,
+            first: true,
+            exhausted: false,
+        }
+    }
 
-//fn next_pos(pos: &mut [usize], shape: &[usize]) -> bool {
-//    let len = pos.len();
-//    assert_eq!(len, shape.len());
-//    if len > 0 {
-//        if pos[len - 1] + 1 < shape[len - 1] {
-//            pos[len - 1] += 1;
-//            true
-//        } else {
-//            if next_pos(&mut pos[..(len - 1)], &shape[..(len - 1)]) {
-//                pos[len - 1] = 0;
-//                true
-//            } else {
-//                false
-//            }
-//        }
-//    } else {
-//        false
-//    }
-//}
+    fn next_slice(&mut self) -> Option<&[usize]> {
+        if self.exhausted {
+            None
+        } else if self.first {
+            if self.shape.content() > 0 {
+                self.first = false;
+                Some(self.position.as_slice())
+            } else {
+                self.exhausted = true;
+                None
+            }
+        } else {
+            let mut carry = true;
+            for i in 0..self.shape.len() {
+                if carry {
+                    carry = false;
+                    let mut pos = self.position[i] + 1;
+                    if pos >= self.shape[i] {
+                        pos = 0;
+                        carry = true;
+                    }
+                    self.position[i] = pos;
+                }
+            }
+            if carry {
+                self.exhausted = true;
+                None
+            } else {
+                Some(self.position.as_slice())
+            }
+        }
+    }
 
-//impl <'a, T: Prm> HostTensorIterMut<'a, T> {
-//
-//}
+    fn next(&mut self) -> Option<usize> {
+        let shape = self.shape.clone();
+        self.next_slice().map(|slice| {
+            slice.iter().zip(shape.iter())
+            .fold((1, 0), |(stride, pos), (x, len)| {
+                (stride*len, pos + stride*x)
+            }).1
+        })
+    }
+}
 
-//impl<'a, T: Prm> Iterator for HostTensorIter<'a, T> {
-//    type Item = &'a T;
-//    fn next(&mut self) -> Option<Self::Item> {
-//        let elem = self.tensor.as_slice()[pos]
-//    }
-//}
+impl <'a, T: Prm> HostTensorIter<'a, T> {
+    fn new(tensor: &'a HostTensor<T>) -> Self {
+        Self {
+            slice: tensor.as_slice(),
+            counter: PositionCounter::new(tensor.shape().clone()),
+        }
+    }
+}
 
-//impl<'a, T: Prm> Iterator for HostTensorIterMut<'a, T> {
-//    type Item = &'a mut T;
-//    fn next(&mut self) -> Option<Self::Item> {
-//
-//    }
-//}
+impl<'a, T: Prm> Iterator for HostTensorIter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.counter.next()
+        .map(|pos| &self.slice[pos])
+    }
+}
