@@ -15,6 +15,6 @@
 [travis]: https://travis-ci.org/agerasev/tension
 [license]: #license
 
-Tensor library with OpenCL acceleration
+Tensor library with OpenCL acceleration.
 
 The project is under development now. Any contribution is welcome.

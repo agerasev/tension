@@ -1,6 +1,6 @@
 [package]
 name = "tension"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Alexey Gerasev <alexey.gerasev@gmail.com>"]
 edition = "2018"
 description = "Tensor library with OpenCL acceleration"
