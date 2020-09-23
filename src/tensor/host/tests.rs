@@ -27,10 +27,22 @@ fn new_zeroed() {
 fn iter() {
     let mut a = Tensor::new_zeroed(&Shape::from([1, 2, 3, 4].as_ref()));
     for i in 0..(2*3*4) {
-        a.as_mut_slice()[i] = i;
+        a.buffer_mut().as_mut_slice()[i] = i;
     }
 
     for (i, v) in a.iter().enumerate() {
         assert_eq!(*v, i);
+    }
+}
+
+#[test]
+fn iter_mut() {
+    let mut a = Tensor::new_zeroed(&Shape::from([1, 2, 3, 4].as_ref()));
+    for (i, v) in a.iter_mut().enumerate() {
+        *v = i;
+    }
+
+    for i in 0..(2*3*4) {
+        assert_eq!(a.buffer().as_slice()[i], i);
     }
 }

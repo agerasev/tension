@@ -2,7 +2,7 @@ use crate::{
     Prm,
     HostBuffer,
     Shape, Tensor, CommonTensor,
-    HostTensorIter,
+    HostTensorIter, HostTensorIterMut,
 };
 
 
@@ -29,17 +29,23 @@ impl<T: Prm> HostTensor<T> {
         Self::new_zeroed_in(&(), shape)
     }
 
-    /// Provideas access to underlying memory.
-    pub fn as_slice(&self) -> &[T] {
-        self.inner.buffer().as_slice()
+    /// Provides access to underlying buffer.
+    pub(crate) fn buffer(&self) -> &HostBuffer<T> {
+        self.inner.buffer()
     }
-    /// Provideas mutable access to underlying memory.
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.inner.buffer_mut().as_mut_slice()
+    /// Provides mutable access to underlying buffer.
+    pub(crate) fn buffer_mut(&mut self) -> &mut HostBuffer<T> {
+        self.inner.buffer_mut()
     }
 
+    /// Iterator over flatten tensor.
     pub fn iter<'a>(&'a self) -> HostTensorIter<'a, T> {
         HostTensorIter::new(self)
+    }
+    /// Mutable iterator over flatten tensor.
+    pub fn iter_mut<'a>(&'a mut self) -> HostTensorIterMut<'a, T> {
+        // FIXME: Make tensor plain when using strides.
+        self.buffer_mut().as_mut_slice().iter_mut()
     }
 }
 
