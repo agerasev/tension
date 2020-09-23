@@ -1,3 +1,6 @@
+mod shape;
+pub use shape::*;
+
 mod common;
 pub use common::*;
 
@@ -8,6 +11,3 @@ pub use host::*;
 mod device;
 #[cfg(feature = "device")]
 pub use device::*;
-
-#[cfg(test)]
-mod test;
