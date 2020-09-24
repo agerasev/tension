@@ -1,6 +1,7 @@
 use crate::{Prm};
 
 
+/// Flat contiguous array.
 pub trait Buffer<T: Prm>: Sized + Clone {
     /// Context for buffer allocation.
     type Context;

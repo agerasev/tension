@@ -1,8 +1,11 @@
 mod shape;
 pub use shape::*;
 
+mod tensor;
+pub use tensor::*;
+
 mod common;
-pub use common::*;
+pub(crate) use common::*;
 
 mod host;
 pub use host::*;
