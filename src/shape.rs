@@ -7,7 +7,7 @@ use std::{
 #[macro_export]
 macro_rules! shape {
     [ $( $x:expr ),* $(,)? ] => {
-        $crate::Shape::from([ $( $x ),* ].as_ref())
+        $crate::shape::Shape::from([ $( $x ),* ].as_ref())
     };
 }
 
@@ -30,7 +30,7 @@ fn trim_vec(vec: &mut Vec<usize>) {
 /// Tensor supposed to have an infinite number of axes. E.g. tensor of shape `(x,y,z)` supposed to be `(x,y,z,1,1,1,...)`.
 /// That means that trailing axes of size `1` are ignored, so shapes `(x,y,z)` and `(x,y,z,1)` are equal.
 ///
-/// There may be a tensor of shape `(,)` (0-dimensional tensor or scalar).
+/// There may be a tensor of shape `()` (0-dimensional tensor or scalar).
 #[derive(Clone, Debug)]
 pub struct Shape {
     vec: Vec<usize>,
