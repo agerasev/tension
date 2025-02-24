@@ -1,6 +1,6 @@
 use std::{
     cmp,
-    ops::{Index, IndexMut, RangeBounds, Bound},
+    ops::{Bound, Index, IndexMut, RangeBounds},
     slice::{Iter, IterMut},
 };
 
@@ -43,14 +43,14 @@ impl From<Vec<usize>> for Shape {
 }
 impl From<&[usize]> for Shape {
     fn from(slice: &[usize]) -> Self {
-        Self::from(slice.iter().cloned().collect::<Vec<_>>())
+        Self::from(slice.to_vec())
     }
 }
 
-impl Into<Vec<usize>> for Shape {
-    fn into(mut self) -> Vec<usize> {
-        trim_vec(&mut self.vec);
-        self.vec
+impl From<Shape> for Vec<usize> {
+    fn from(mut shape: Shape) -> Vec<usize> {
+        trim_vec(&mut shape.vec);
+        shape.vec
     }
 }
 
@@ -64,6 +64,9 @@ impl Shape {
     /// Count of dimensions without trailing `1`s in the end.
     pub fn len(&self) -> usize {
         count_non_one(self.vec.as_slice())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Slice of dimension sizes.
@@ -85,7 +88,7 @@ impl Shape {
     }
     /// Number of items in tensor of this shape.
     pub fn content(&self) -> usize {
-        self.iter().fold(1, |a, &x| a * x )
+        self.iter().product()
     }
 }
 
@@ -117,16 +120,22 @@ impl Shape {
     /// Sadly, you cannot use `shape[a..b]` syntax because Rust `Index` trait is required to return a reference.
     pub fn slice<R: RangeBounds<usize>>(&self, range: R) -> Shape {
         let len = self.len();
-        let sidx = cmp::min(match range.start_bound() {
-            Bound::Included(i) => *i,
-            Bound::Excluded(i) => *i + 1,
-            Bound::Unbounded => 0,
-        }, len);
-        let eidx = cmp::min(match range.end_bound() {
-            Bound::Included(i) => *i + 1,
-            Bound::Excluded(i) => *i,
-            Bound::Unbounded => len,
-        }, len);
+        let sidx = cmp::min(
+            match range.start_bound() {
+                Bound::Included(i) => *i,
+                Bound::Excluded(i) => *i + 1,
+                Bound::Unbounded => 0,
+            },
+            len,
+        );
+        let eidx = cmp::min(
+            match range.end_bound() {
+                Bound::Included(i) => *i + 1,
+                Bound::Excluded(i) => *i,
+                Bound::Unbounded => len,
+            },
+            len,
+        );
         Self::from(&self.as_slice()[sidx..eidx])
     }
 }
@@ -156,10 +165,7 @@ mod tests {
 
     #[test]
     fn eq() {
-        assert_eq!(
-            shape![1, 2, 1, 3, 1],
-            shape![1, 2, 1, 3],
-        );
+        assert_eq!(shape![1, 2, 1, 3, 1], shape![1, 2, 1, 3],);
     }
 
     #[test]

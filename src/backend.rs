@@ -13,6 +13,7 @@ impl Value for AnyValue {}
 pub trait FinalValue: Value + Copy + Default {}
 
 /// Owned data.
+#[allow(clippy::len_without_is_empty)]
 pub trait Data<B: Backend + ?Sized, T: Value = AnyValue> {
     fn len(&self) -> Result<usize, B::Error>;
 
